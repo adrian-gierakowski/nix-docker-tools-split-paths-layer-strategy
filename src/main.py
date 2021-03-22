@@ -7,6 +7,7 @@ from operator import is_not
 g_maybe_no_root = Graph.TupleList(
   [
     ("app", "app-config"),
+    ("app", "script3"),
     ("app", "app-dep1"),
     ("app", "app-dep2"),
     ("app-dep2", "app-dep2_dep1"),
@@ -132,7 +133,7 @@ def split(split_path_specs):
     print("split_path_indices:", split_path_indices)
 
     if len(split_path_indices) == 0:
-      return [g_in]
+      return None
 
     g, root_name = add_root(g_in)
 
@@ -169,15 +170,22 @@ def split(split_path_specs):
 
   return split_innner
 
-def reducer(acc, split_paths):
-  print('reducer split_paths', split_paths)
+def reducer(acc, edge_cut_spec):
+  print('reducer edge_cut_spec', edge_cut_spec)
   print('acc', acc)
-  return unnestIterable(
-    map(
-      split(split_paths),
-      acc
-    )
-  )
+  graphs = []
+  split_off_graph = Graph(directed=True)
+  for graph in acc:
+    result = split(edge_cut_spec)(graph)
+    if result == None:
+      graphs.append(graph)
+    else:
+      head, *tail = result
+      split_off_graph += head
+      graphs.extend(tail)
+
+  graphs.append(split_off_graph)
+  return graphs
 
 # print(list(chain.from_iterable([[1,2],[2,3]])))
 # quit()
