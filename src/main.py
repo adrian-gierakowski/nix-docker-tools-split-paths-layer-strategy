@@ -12,18 +12,18 @@ g_maybe_no_root = Graph.TupleList(
     ("app", "app-dep2"),
     ("app-dep2", "app-dep2_dep1"),
     ("app-dep2", "libc"),
-    ("script1", "script1-dep1"),
-    ("script1", "script2"),
-    ("script1", "bash"),
-    ("script1", "coreutils"),
-    ("script2", "bash"),
+    # ("script1", "script1-dep1"),
+    # ("script1", "script2"),
+    # ("script1", "bash"),
+    # ("script1", "coreutils"),
+    # ("script2", "bash"),
     ("script3", "bash"),
     ("bash", "libc"),
-    ("curl", "libc"),
-    ("coreutils", "libc"),
-    ("top-level", "curl"),
-    ("top-level", "coreutils"),
-    ("top-level", "bash")
+    # ("curl", "libc"),
+    # ("coreutils", "libc"),
+    # ("top-level", "curl"),
+    # ("top-level", "coreutils"),
+    # ("top-level", "bash")
 
   ],
   directed=True
@@ -39,13 +39,34 @@ def print_vs(g):
 # print(g_maybe_no_root.subcomponent("bash", mode="out"))
 # print_vs(g_maybe_no_root.induced_subgraph(g_maybe_no_root.subcomponent("bash", mode="out")))
 
-def my_plot(g):
+def my_plot(g, **kwargs):
   g.vs["label"] = g.vs["name"]
-  g.vs["label_size"] = 24
-  plot(g, layout=g.layout("tree"))
+  g.vs["label_size"] = 20
+  plot(g,
+    **kwargs,
+    bbox=(1200, 1200),
+    margin=100,
+    vertex_label_dist=-5,
+    edge_color='orange',
+    # keep_aspect_ratio=True
+  )
 
-def plot_induced(g, vs):
-  my_plot(g.induced_subgraph(vs))
+def remove_elemts_at_indices(xs, indices):
+  return [x for i,x in enumerate(xs) if i not in frozenset(indices)]
+
+def pick_elemts_at_indices(xs, indices):
+  return [x for i,x in enumerate(xs) if i in frozenset(indices)]
+
+def plot_induced_highligth(g, vs, layout):
+  vertex_color=[
+    'green' if v.index in vs else 'red'
+    for v in g.vs
+  ]
+  my_plot(g,
+    layout=layout,
+    # layout=Layout(new_coords),
+    vertex_color=vertex_color
+  )
 
 def add_root(g, added_root_name = "__root__"):
   # my_plot(g)
@@ -73,7 +94,12 @@ def subcomponent_multi(g, vs):
     vs
   )
 
-split_paths_arrays = [["app"], [{ "children_of": "app" }], ["script1", "script3"]]
+split_paths_arrays = [
+  ["app"],
+  [{ "children_of": "app" }],
+  ["script1", "script3"],
+  [{"children_of": "script3"}],
+]
 # split_paths_arrays = [["app"], ["script1", "script3"]]
 
 
@@ -143,14 +169,15 @@ def split(split_path_specs):
 
     # quit()
 
-    # my_plot(g)
+    layout = g.layout("sugiyama")
+    my_plot(g, layout=layout)
     print('root_name', root_name)
     split_off_vertex_indices = set(subcomponent_multi(g, split_path_indices))
 
     print('split_off_vertex_indices', split_off_vertex_indices)
     g.delete_edges(_target_in = split_path_indices)
 
-    # my_plot(g)
+    my_plot(g, layout=layout)
 
     rest_with_common = set(g.subcomponent(root_name, mode="out"))
 
@@ -161,6 +188,26 @@ def split(split_path_specs):
     print('rest_without_common', rest_without_common)
     split_off_without_common = split_off_vertex_indices.difference(common)
     print('split_off_without_common', split_off_without_common)
+
+    def choose_color(index):
+      if (index in split_off_without_common):
+        return 'green'
+      elif (index in rest_without_common):
+        return 'red'
+      else:
+        return 'purple'
+
+    vertex_color = [choose_color(v.index) for v in g.vs]
+
+    my_plot(g,
+      layout=layout,
+      # layout=Layout(new_coords),
+      vertex_color=vertex_color
+    )
+
+    # plot_induced_highligth(g, split_off_without_common, layout),
+    # plot_induced_highligth(g, rest_without_common, layout),
+    # plot_induced_highligth(g, common, layout)
 
     return [
       g.induced_subgraph(split_off_without_common),
@@ -178,6 +225,7 @@ def reducer(acc, edge_cut_spec):
   for graph in acc:
     result = split(edge_cut_spec)(graph)
     if result == None:
+      # my_plot(graph)
       graphs.append(graph)
     else:
       head, *tail = result
