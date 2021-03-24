@@ -1,1 +1,1 @@
-import /home/adrian/code/nixpkgs
+import (import ./nix/sources.nix).nixpkgs
