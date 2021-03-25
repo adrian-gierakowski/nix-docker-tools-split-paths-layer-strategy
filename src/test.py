@@ -359,8 +359,8 @@ class TestSplitGraph(unittest.TestCase):
       ]
     ]
 
-    all_other_paths = set(graph.vs["name"]).difference(
-      set(unnestIterable(expected_initial_layers))
+    all_other_paths = frozenset(graph.vs["name"]).difference(
+      frozenset(unnestIterable(expected_initial_layers))
     )
 
     assertResult(self,
@@ -531,7 +531,7 @@ def assertResult(self, result, expected_layers):
     for index, expected_layer in enumerate(expected_layers):
       self.assertSetEqual(
         graphToSet(result[index]),
-        set(expected_layer),
+        frozenset(expected_layer),
         f'In layer index: {index}'
       )
 
