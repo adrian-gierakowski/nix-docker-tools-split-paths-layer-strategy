@@ -3,7 +3,10 @@ import unittest
 import igraph as igraph
 import itertools as itertools
 
-from .main import flat_map, debug, print_vs, split_graph, closure_paths_to_graph, load_json
+from .main import (
+  flat_map, debug, split_graph, closure_paths_to_graph,
+  load_closure_graph, unnestIterable
+)
 
 class TestSplitGraph(unittest.TestCase):
 
@@ -317,13 +320,101 @@ class TestSplitGraph(unittest.TestCase):
 
   # WIP
   def test_real(self):
-    graph = closure_paths_to_graph(load_json("./__test_fixtures/closure-path.json"))
+    graph = load_closure_graph("./__test_fixtures/closure-path.json")
+
+    base_json_plus_wrapper_script = [
+      "/nix/store/d42mjlakai854fhns781453xpkhfscpj-startup-script",
+      "/nix/store/21586x62x26h2nmn6n6df25yybrpnl8k-with-env-from-dir",
+      "/nix/store/gg5ngl1rbb7kifwkkmq1ir9spjdpqxhr-ankisyncd-base.json"
+    ]
+
+    expected_initial_layers = [
+      [
+        "/nix/store/0sgd2psd7c9i2q2zyvg47dcflxv4fqjh-nss-cacert-3.60",
+        "/nix/store/3wa1xwnfv8ada1za1r8m4vmsiz1jifqq-glibc-2.32-35",
+        "/nix/store/48gydzv98ns14ylw7gmkx38r4gnds82m-libunistring-0.9.10",
+        "/nix/store/p4ndfjdkdpmj5gd7ifk0rjdmyihnfnm8-libidn2-2.3.0",
+      ],
+      [
+        "/nix/store/fcgyfgjhss9adn9f2jzdq5nclldi5v2l-closure",
+        "/nix/store/kbz9qzjqkv2x5y4gkxcqgjfj8d0y0adh-busybox-1.32.1",
+      ],
+      [
+        "/nix/store/21586x62x26h2nmn6n6df25yybrpnl8k-with-env-from-dir",
+        "/nix/store/d42mjlakai854fhns781453xpkhfscpj-startup-script",
+        "/nix/store/gg5ngl1rbb7kifwkkmq1ir9spjdpqxhr-ankisyncd-base.json",
+      ],
+      [
+        "/nix/store/3y5s6iyzqg2rwy8qz79i5f6cfmwqiaav-attr-2.4.48",
+        "/nix/store/8w2r3lp9zkqd5rgqxxx8vi9k8kf7ckw4-pcre-8.44",
+        "/nix/store/camix5721pydww6zwwd4wg77krk61gf1-acl-2.2.53",
+      ],
+      [
+        "/nix/store/wmiyjdsaydyv024al5ddqd3liljrfvk7-gnugrep-3.6",
+        "/nix/store/ypsd29c5hgj1x7xz5ddffanxw5d8fh7b-coreutils-8.32",
+        "/nix/store/yyy7wr7r9jwjjqkr1yn643g3wzv010zd-bash-4.4-p23",
+      ],
+      [
+        "/nix/store/2y63mp9ln1xychnm1bhgl5r0j0islpj8-ankisyncd-2.2.0",
+      ]
+    ]
+
+    all_other_paths = set(graph.vs["name"]).difference(
+      set(unnestIterable(expected_initial_layers))
+    )
+
     assertResult(self,
       split_graph(
         graph,
-        [["/nix/store/zr5y2gv34lyflyfi33hlk28ppk31apr6-gfortran-9.3.0-lib"]]
+        [
+          base_json_plus_wrapper_script,
+          [{
+            "children_of": base_json_plus_wrapper_script
+          }],
+          [
+            "/nix/store/2y63mp9ln1xychnm1bhgl5r0j0islpj8-ankisyncd-2.2.0",
+          ],
+          [{
+            "children_of": [
+              "/nix/store/2y63mp9ln1xychnm1bhgl5r0j0islpj8-ankisyncd-2.2.0",
+            ]
+          }],
+        ]
       ),
-      []
+      expected_initial_layers + [all_other_paths]
+    )
+
+
+    cacert_path = "/nix/store/0sgd2psd7c9i2q2zyvg47dcflxv4fqjh-nss-cacert-3.60"
+
+    assertResult(self,
+      split_graph(
+        graph,
+        [
+          [{
+            "children_of": base_json_plus_wrapper_script
+          }],
+          base_json_plus_wrapper_script,
+          [{
+            "children_of": [
+              "/nix/store/2y63mp9ln1xychnm1bhgl5r0j0islpj8-ankisyncd-2.2.0",
+            ]
+          }],
+          [
+            "/nix/store/2y63mp9ln1xychnm1bhgl5r0j0islpj8-ankisyncd-2.2.0",
+          ],
+        ]
+      ),
+      [
+        # ca-cert is moved to different layre (deps of base.json)
+        filter(lambda x: x != cacert_path, expected_initial_layers[0]),
+        expected_initial_layers[1],
+        expected_initial_layers[3],
+        expected_initial_layers[4] + [cacert_path],
+        expected_initial_layers[2],
+        all_other_paths,
+        expected_initial_layers[5]
+      ]
     )
 
 class TestClosurePathToGraph(unittest.TestCase):
@@ -416,7 +507,7 @@ def layers_to_error_string(layers):
     out += f"\nlayer index: {index}\n[\n"
     for v in layer.vs["name"]:
       out += f"  \"{v}\",\n"
-    out += "]"
+    out += "],"
 
   return out
 
@@ -428,22 +519,24 @@ def graphToSet(graph):
 
 def assertResult(self, result, expected_layers):
   try:
+    expected_layers_count = len(expected_layers)
+    actual_layers_count = len(result)
+
+    self.assertEqual(
+      actual_layers_count,
+      expected_layers_count,
+      f'Unexpected layers count, should be: {expected_layers_count}'
+    )
+
     for index, expected_layer in enumerate(expected_layers):
-      if index >= len(result):
-        print_layers(result)
-        self.assertTrue(
-          False,
-          f'Layer with index: {index} does not exist'
-        )
-      else:
-        self.assertSetEqual(
-          graphToSet(result[index]),
-          set(expected_layer),
-          f'In layer index: {index}'
-        )
+      self.assertSetEqual(
+        graphToSet(result[index]),
+        set(expected_layer),
+        f'In layer index: {index}'
+      )
 
   except AssertionError as error:
-    error.args = (error.args[0] + "\n" + layers_to_error_string(result), )
+    error.args = (layers_to_error_string(result) + "\n" + error.args[0] + "\n", )
     raise
 
 def testSplitGraph(self, edges, split_path_specs, expected_layers):

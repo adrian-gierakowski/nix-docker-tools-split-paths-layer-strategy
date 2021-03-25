@@ -1,8 +1,9 @@
 import os as os
 
-import json as json
 import igraph as igraph
 import itertools as itertools
+import json as json
+import re as re
 
 from functools import reduce
 
@@ -20,11 +21,17 @@ def debug_plot(g, **kwargs):
   if not DEBUG_PLOT:
     return
 
-  g.vs["label"] = g.vs["name"]
+
+  if not "label" in g.vs:
+    g.vs["label"] = [
+      # remove /nix/store/HASH- prefix from labels
+      re.split('^/nix/store/[a-z0-9]{32}-', name)[-1] for name in g.vs["name"]
+    ]
+
   g.vs["label_size"] = 20
   igraph.plot(g,
     **kwargs,
-    bbox=(1200, 1200),
+    bbox=(3840, 2160),
     margin=100,
     vertex_label_dist=-5,
     edge_color='orange',
@@ -160,7 +167,7 @@ def split(graph_in, split_paths):
   graph = graph if graph is not graph_in else graph.copy()
 
   if DEBUG_PLOT:
-    layout = graph.layout("sugiyama")
+    layout = graph.layout()
     debug_plot(graph, layout=layout)
 
   # Get incidences of all vertices which can be reached split_path_indices
@@ -323,3 +330,6 @@ def closure_paths_to_graph(closure_paths):
 def load_json(filename):
   with open(filename) as f:
     return json.load(f)
+
+def load_closure_graph(filename):
+  return closure_paths_to_graph(load_json(filename))
