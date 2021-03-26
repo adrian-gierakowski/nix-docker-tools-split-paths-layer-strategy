@@ -1,22 +1,27 @@
-{ gwenview, python3Packages }: python3Packages.buildPythonApplication {
-  version = "0.0.1";
-  pname = "split-paths-layer-strategy";
+{ nix-gitignore, gwenview, python39Packages, }:
+let
+  pythonPackages = python39Packages;
+in pythonPackages.buildPythonApplication {
+  version = "0.1.0";
+  pname = "flatten-references-graph";
 
-  src = ./src;
+  # Note this uses only ./src/.gitignore
+  src = nix-gitignore.gitignoreSource [] ./src;
 
   # Specify runtime dependencies for the package
-  buildInputs = with python3Packages; [
+  propagatedBuildInputs = with pythonPackages; [
     python-igraph
+  ];
+
+  # Test dependencies
+  checkInputs = with pythonPackages; [
+    flake8
     pycairo
     gwenview
   ];
 
-  # Test dependencies
-  checkInputs = with python3Packages; [
-    flake8
-  ];
-
+  doCheck = true;
   checkPhase = ''
-    ${python3Packages.flake8}/bin/flake8 --show-source
+    ${pythonPackages.flake8}/bin/flake8 --show-source
   '';
 }
