@@ -74,11 +74,12 @@ def split_path_spec_to_indices(graph):
         if isinstance(split_path_spec, dict):
             if "children_of" in split_path_spec:
                 children_of = split_path_spec["children_of"]
-                return get_children_of(
-                    graph,
-                    [children_of] if isinstance(
-                        children_of, str) else children_of
-                )
+
+                return get_children_of(graph, (
+                    [children_of]
+                    if isinstance(children_of, str)
+                    else children_of
+                ))
             else:
                 raise Exception(
                     "Unexpected split path spec: dict with invalid keys."
@@ -176,10 +177,11 @@ def split(graph_in, split_paths):
 
         vertex_color = [choose_color(v.index) for v in graph.vs]
 
-        debug_plot(graph,
-                   layout=layout,
-                   vertex_color=vertex_color
-                   )
+        debug_plot(
+            graph,
+            layout=layout,
+            vertex_color=vertex_color
+        )
 
     # Return subgraphs based on calculated sets of vertices.
     return [
@@ -255,12 +257,13 @@ def remove_added_root(graph):
 
 def split_graph(graph, split_path_specs):
     return list(
-        filter(graph_is_not_empty,
-               map(
-                   remove_added_root,
-                   reduce(reducer, split_path_specs, [graph]),
-               )
-               )
+        filter(
+            graph_is_not_empty,
+            map(
+                remove_added_root,
+                reduce(reducer, split_path_specs, [graph]),
+            )
+        )
     )
 
 
@@ -276,13 +279,14 @@ def debug_plot(g, **kwargs):
         ]
 
     g.vs["label_size"] = 20
-    igraph.plot(g,
-                **kwargs,
-                bbox=(3840, 2160),
-                margin=100,
-                vertex_label_dist=-5,
-                edge_color="orange",
-                )
+    igraph.plot(
+        g,
+        **kwargs,
+        bbox=(3840, 2160),
+        margin=100,
+        vertex_label_dist=-5,
+        edge_color="orange",
+    )
 
 
 def debug_plot_with_highligth(g, vs, layout):
@@ -290,8 +294,9 @@ def debug_plot_with_highligth(g, vs, layout):
         "green" if v.index in vs else "red"
         for v in g.vs
     ]
-    debug_plot(g,
-               layout=layout,
-               # layout=Layout(new_coords),
-               vertex_color=vertex_color
-               )
+    debug_plot(
+        g,
+        layout=layout,
+        # layout=Layout(new_coords),
+        vertex_color=vertex_color
+    )

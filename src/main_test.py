@@ -12,7 +12,7 @@ class TestMain(unittest.TestCase):
     def test_main_impl(self):
         file_path = path_relative_to_file(
             __file__,
-            "__test_fixtures/flatten_references_graph_main_input.json"
+            "__test_fixtures/flatten-references-graph-main-input.json"
         )
 
         result = main_impl(file_path)
