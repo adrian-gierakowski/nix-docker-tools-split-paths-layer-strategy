@@ -11,6 +11,7 @@ in pythonPackages.buildPythonApplication {
   # Specify runtime dependencies for the package
   propagatedBuildInputs = with pythonPackages; [
     python-igraph
+    toolz
   ];
 
   # Test dependencies

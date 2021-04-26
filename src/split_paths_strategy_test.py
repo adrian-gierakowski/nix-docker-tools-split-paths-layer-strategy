@@ -1,8 +1,10 @@
 import unittest
 
-import igraph as igraph
-
 from .split_paths_strategy import split_graph
+
+from .lib import (
+    directedGraph
+)
 
 from .lib import (
     load_closure_graph,
@@ -11,17 +13,57 @@ from .lib import (
 )
 
 
-# noqa: E501
-class TestSplitGraph(unittest.TestCase):
+if __name__ == "__main__":
+    unittest.main()
+
+
+class CustomAssertions:
+    def assertResult(self, result, expected_layers):
+        try:
+            expected_layers_count = len(expected_layers)
+            actual_layers_count = len(result)
+
+            self.assertEqual(
+                actual_layers_count,
+                expected_layers_count,
+                f"Unexpected layers count, should be: {expected_layers_count}"
+            )
+
+            for index, expected_layer in enumerate(expected_layers):
+                self.assertSetEqual(
+                    vertexNames(result[index]),
+                    frozenset(expected_layer),
+                    f"In layer index: {index}"
+                )
+
+        except AssertionError as error:
+            error.args = (
+                layers_to_error_string(result) + "\n" + error.args[0] + "\n",
+            )
+            raise
+
+    def splitGraphAndAssert(self, edges, split_path_specs, expected_layers):
+        self.assertResult(
+            split_graph(
+                directedGraph(edges),
+                split_path_specs
+            ),
+            expected_layers
+        )
+
+
+class TestSplitGraph(unittest.TestCase, CustomAssertions):
+
+    # def test_split_below():
 
     def test_degenerate(self):
-        testSplitGraph(self,
+        self.splitGraphAndAssert(
             edges=[],
             split_path_specs=[],
             expected_layers=[]
         )
 
-        testSplitGraph(self,
+        self.splitGraphAndAssert(
             edges=[],
             split_path_specs=[
                 ["app"]
@@ -31,7 +73,7 @@ class TestSplitGraph(unittest.TestCase):
 
         edges = [("app", "app-dep")]
 
-        testSplitGraph(self,
+        self.splitGraphAndAssert(
             edges,
             split_path_specs=[],
             expected_layers=[
@@ -39,7 +81,7 @@ class TestSplitGraph(unittest.TestCase):
             ]
         )
 
-        testSplitGraph(self,
+        self.splitGraphAndAssert(
             edges,
             split_path_specs=[
                 ["app"]
@@ -55,7 +97,7 @@ class TestSplitGraph(unittest.TestCase):
             ("bash", "libc")
         ]
 
-        testSplitGraph(self,
+        self.splitGraphAndAssert(
             edges,
             split_path_specs=[
                 ["app"]
@@ -66,7 +108,7 @@ class TestSplitGraph(unittest.TestCase):
             ]
         )
 
-        testSplitGraph(self,
+        self.splitGraphAndAssert(
             edges,
             split_path_specs=[
                 ["bash"]
@@ -77,7 +119,7 @@ class TestSplitGraph(unittest.TestCase):
             ]
         )
 
-        testSplitGraph(self,
+        self.splitGraphAndAssert(
             edges,
             split_path_specs=[
                 ["app-dep"]
@@ -88,7 +130,7 @@ class TestSplitGraph(unittest.TestCase):
             ]
         )
 
-        testSplitGraph(self,
+        self.splitGraphAndAssert(
             edges,
             split_path_specs=[
                 ["libc"]
@@ -106,7 +148,7 @@ class TestSplitGraph(unittest.TestCase):
             ("bash", "libc")
         ]
 
-        testSplitGraph(self,
+        self.splitGraphAndAssert(
             edges,
             split_path_specs=[
                 ["app"]
@@ -118,7 +160,7 @@ class TestSplitGraph(unittest.TestCase):
             ]
         )
 
-        testSplitGraph(self,
+        self.splitGraphAndAssert(
             edges,
             split_path_specs=[
                 ["bash"]
@@ -130,7 +172,7 @@ class TestSplitGraph(unittest.TestCase):
             ]
         )
 
-        testSplitGraph(self,
+        self.splitGraphAndAssert(
             edges,
             split_path_specs=[
                 ["app-dep"]
@@ -146,89 +188,101 @@ class TestSplitGraph(unittest.TestCase):
         edges = [
             ("app", "app-dep"),
             ("app-dep", "libc"),
-            ("script-1", "script-1-dep"),
+            ("script", "script-dep"),
             ("bash", "libc")
         ]
 
-        testSplitGraph(self,
+        self.splitGraphAndAssert(
             edges,
             split_path_specs=[
                 ["app"]
             ],
             expected_layers=[
                 ["libc"],
-                ["script-1", "script-1-dep", "bash"],
+                ["script", "script-dep", "bash"],
                 ["app", "app-dep"]
             ]
         )
 
-        testSplitGraph(self,
+        self.splitGraphAndAssert(
             edges,
             split_path_specs=[
-                ["script-1"],
-                ["app"]
+                ["app"],
+                ["script"]
             ],
             expected_layers=[
                 ["libc"],
                 ["bash"],
-                ["script-1", "script-1-dep"],
+                ["script", "script-dep"],
                 ["app", "app-dep"]
             ]
         )
 
-        # Order of split_path_specs determines the order of produced layers.
-        testSplitGraph(self,
+        self.splitGraphAndAssert(
             edges,
             split_path_specs=[
-                ["app"],
-                ["script-1"]
+                ["script"],
+                ["app"]
             ],
             expected_layers=[
                 ["libc"],
                 ["bash"],
                 ["app", "app-dep"],
-                ["script-1", "script-1-dep"]
+                ["script", "script-dep"]
             ]
         )
 
     def test_children_of(self):
         edges = [
-            ("app", "app-dep-1"),
-            ("app", "app-dep-2"),
-            ("app-dep-1", "libc"),
-            ("bash", "libc"),
-            ("script-1", "app-dep-2")
+            ("app", "app-dep"),
+            ("app-dep", "app-transitive-dep"),
+            ("app", "common-dep-1"),
+            ("app-dep", "common-dep-2"),
+            ("bash", "common-dep-2"),
+            ("script", "common-dep-1")
         ]
 
-        testSplitGraph(self,
+        self.splitGraphAndAssert(
+            edges,
+            split_path_specs=[
+                [{"children_of": "app"}]
+            ],
+            expected_layers=[
+                ["common-dep-2"],
+                ["app", "bash", "script"],
+                ["app-dep", "app-transitive-dep", "common-dep-1"]
+            ]
+        )
+
+        self.splitGraphAndAssert(
             edges,
             split_path_specs=[
                 [{"children_of": "app"}],
                 ["app"],
             ],
             expected_layers=[
-                ["libc"],
-                ["bash", "script-1"],
-                ["app-dep-1", "app-dep-2"],
-                ["app"]
+                ["common-dep-2"],
+                ["bash", "script"],
+                ["app"],
+                ["app-dep", "app-transitive-dep", "common-dep-1"]
             ]
         )
 
-        testSplitGraph(self,
+        self.splitGraphAndAssert(
             edges,
             split_path_specs=[
                 ["app"],
                 [{"children_of": "app"}]
             ],
             expected_layers=[
-                # NOTE: app-dep-2 ended up in the "common" layer since it"s also
-                # a dep of script-1. Since we split on "add" first, it landed in
-                # the common layer, and so during the second split, it was not a
-                # "child" of app any more.
-                ["libc", "app-dep-2"],
-                ["bash", "script-1"],
+                # NOTE: common-dep-2 ended up in the "common" layer since it's
+                # a dep of script as well as the app. Since we split on "app"
+                # first, it landed in the common layer, and so during the second
+                # split, it was not a "child" of app any more.
+                ["common-dep-2", "common-dep-1"],
+                ["bash", "script"],
                 ["app"],
-                ["app-dep-1"],
+                ["app-dep", "app-transitive-dep"],
             ]
         )
 
@@ -251,7 +305,7 @@ class TestSplitGraph(unittest.TestCase):
 
         all_scripts = ["script-1", "script-2", "script-3"]
 
-        testSplitGraph(self,
+        self.splitGraphAndAssert(
             edges,
             split_path_specs=[
                 all_scripts
@@ -270,30 +324,7 @@ class TestSplitGraph(unittest.TestCase):
             ]
         )
 
-        testSplitGraph(self,
-            edges,
-            split_path_specs=[
-                [{"children_of": all_scripts}],
-                all_scripts
-            ],
-            expected_layers=[
-                ["top-level"],
-                [
-                    "bash",
-                    "libc",
-                    "coreutils",
-                    "gnugrep",
-                    "curl"
-                ],
-                [
-                    "script-1",
-                    "script-2",
-                    "script-3"
-                ]
-            ]
-        )
-
-        testSplitGraph(self,
+        self.splitGraphAndAssert(
             edges,
             split_path_specs=[
                 all_scripts,
@@ -319,6 +350,55 @@ class TestSplitGraph(unittest.TestCase):
             ]
         )
 
+        self.splitGraphAndAssert(
+            edges,
+            split_path_specs=[
+                [{"children_of": all_scripts}]
+            ],
+            expected_layers=[
+                [
+                    "script-1",
+                    "script-3",
+                    "top-level"
+                ],
+                [
+                    "script-2",
+                    "coreutils",
+                    "gnugrep",
+                    "curl",
+                    "bash",
+                    "libc"
+                ]
+            ]
+        )
+
+        self.splitGraphAndAssert(
+            edges,
+            split_path_specs=[
+                [{"children_of": all_scripts}],
+                all_scripts
+            ],
+            expected_layers=[
+                [
+                    "top-level",
+                ],
+                [
+                    "script-1",
+                    "script-3",
+                ],
+                [
+                    "coreutils",
+                    "gnugrep",
+                    "curl",
+                    "bash",
+                    "libc",
+                ],
+                [
+                    "script-2",
+                ]
+            ]
+        )
+
     # WIP
     def test_real(self):
         graph = load_closure_graph(path_relative_to_file(
@@ -335,31 +415,31 @@ class TestSplitGraph(unittest.TestCase):
         expected_initial_layers = [
             [
                 "/nix/store/0sgd2psd7c9i2q2zyvg47dcflxv4fqjh-nss-cacert-3.60",
-                "/nix/store/3wa1xwnfv8ada1za1r8m4vmsiz1jifqq-glibc-2.32-35",
-                "/nix/store/48gydzv98ns14ylw7gmkx38r4gnds82m-libunistring-0.9.10",
                 "/nix/store/p4ndfjdkdpmj5gd7ifk0rjdmyihnfnm8-libidn2-2.3.0",
+                "/nix/store/48gydzv98ns14ylw7gmkx38r4gnds82m-libunistring-0.9.10",
+                "/nix/store/3wa1xwnfv8ada1za1r8m4vmsiz1jifqq-glibc-2.32-35"
             ],
             [
                 "/nix/store/fcgyfgjhss9adn9f2jzdq5nclldi5v2l-closure",
-                "/nix/store/kbz9qzjqkv2x5y4gkxcqgjfj8d0y0adh-busybox-1.32.1",
+                "/nix/store/kbz9qzjqkv2x5y4gkxcqgjfj8d0y0adh-busybox-1.32.1"
             ],
             [
-                "/nix/store/21586x62x26h2nmn6n6df25yybrpnl8k-with-env-from-dir",
-                "/nix/store/d42mjlakai854fhns781453xpkhfscpj-startup-script",
                 "/nix/store/gg5ngl1rbb7kifwkkmq1ir9spjdpqxhr-ankisyncd-base.json",
+                "/nix/store/d42mjlakai854fhns781453xpkhfscpj-startup-script",
+                "/nix/store/21586x62x26h2nmn6n6df25yybrpnl8k-with-env-from-dir"
             ],
             [
                 "/nix/store/3y5s6iyzqg2rwy8qz79i5f6cfmwqiaav-attr-2.4.48",
-                "/nix/store/8w2r3lp9zkqd5rgqxxx8vi9k8kf7ckw4-pcre-8.44",
                 "/nix/store/camix5721pydww6zwwd4wg77krk61gf1-acl-2.2.53",
+                "/nix/store/8w2r3lp9zkqd5rgqxxx8vi9k8kf7ckw4-pcre-8.44"
             ],
             [
                 "/nix/store/wmiyjdsaydyv024al5ddqd3liljrfvk7-gnugrep-3.6",
-                "/nix/store/ypsd29c5hgj1x7xz5ddffanxw5d8fh7b-coreutils-8.32",
                 "/nix/store/yyy7wr7r9jwjjqkr1yn643g3wzv010zd-bash-4.4-p23",
+                "/nix/store/ypsd29c5hgj1x7xz5ddffanxw5d8fh7b-coreutils-8.32"
             ],
             [
-                "/nix/store/2y63mp9ln1xychnm1bhgl5r0j0islpj8-ankisyncd-2.2.0",
+                "/nix/store/2y63mp9ln1xychnm1bhgl5r0j0islpj8-ankisyncd-2.2.0"
             ]
         ]
 
@@ -367,7 +447,7 @@ class TestSplitGraph(unittest.TestCase):
             frozenset(unnest_iterable(expected_initial_layers))
         )
 
-        assertResult(self,
+        self.assertResult(
             split_graph(
                 graph,
                 [
@@ -390,7 +470,12 @@ class TestSplitGraph(unittest.TestCase):
 
         cacert_path = "/nix/store/0sgd2psd7c9i2q2zyvg47dcflxv4fqjh-nss-cacert-3.60"
 
-        assertResult(self,
+        last_layer = [
+            "/nix/store/d42mjlakai854fhns781453xpkhfscpj-startup-script",
+            "/nix/store/21586x62x26h2nmn6n6df25yybrpnl8k-with-env-from-dir"
+        ]
+
+        self.assertResult(
             split_graph(
                 graph,
                 [
@@ -409,18 +494,19 @@ class TestSplitGraph(unittest.TestCase):
                 ]
             ),
             [
-                # ca-cert is moved to different layre (deps of
-                # base.json)
-                filter(
-                    lambda x: x != cacert_path,
-                    expected_initial_layers[0]
+                # ca-cert is moved to different layre (deps of base.json)
+                frozenset(expected_initial_layers[0]).difference(
+                    frozenset([cacert_path])
                 ),
                 expected_initial_layers[1],
+                frozenset(expected_initial_layers[2]).difference(
+                    frozenset(last_layer)
+                ),
                 expected_initial_layers[3],
                 expected_initial_layers[4] + [cacert_path],
-                expected_initial_layers[2],
+                expected_initial_layers[5],
                 all_other_paths,
-                expected_initial_layers[5]
+                last_layer
             ]
         )
 
@@ -434,54 +520,11 @@ def layers_to_error_string(layers):
     for index, layer in enumerate(layers):
         out += f"\nlayer index: {index}\n[\n"
         for v in layer.vs["name"]:
-            out += f"  \"{v}\",\n"
+            out += f"    \"{v}\",\n"
         out += "],"
 
     return out
 
 
-def directedGraph(edges):
-    return igraph.Graph.TupleList(edges, directed=True)
-
-
-def graphToSet(graph):
+def vertexNames(graph):
     return frozenset(graph.vs["name"])
-
-
-def assertResult(self, result, expected_layers):
-    try:
-        expected_layers_count = len(expected_layers)
-        actual_layers_count = len(result)
-
-        self.assertEqual(
-            actual_layers_count,
-            expected_layers_count,
-            f"Unexpected layers count, should be: {expected_layers_count}"
-        )
-
-        for index, expected_layer in enumerate(expected_layers):
-            self.assertSetEqual(
-                graphToSet(result[index]),
-                frozenset(expected_layer),
-                f"In layer index: {index}"
-            )
-
-    except AssertionError as error:
-        error.args = (
-            layers_to_error_string(result) + "\n" + error.args[0] + "\n",
-        )
-        raise
-
-
-def testSplitGraph(self, edges, split_path_specs, expected_layers):
-    assertResult(self,
-        split_graph(
-            directedGraph(edges),
-            split_path_specs
-        ),
-        expected_layers
-    )
-
-
-if __name__ == "__main__":
-    unittest.main()

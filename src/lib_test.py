@@ -1,6 +1,6 @@
 import unittest
 
-from .lib import references_graph_to_igraph
+from .lib import references_graph_to_igraph, print_vs, find_vertex_by_name_or_none
 
 if __name__ == "__main__":
     unittest.main()
@@ -11,16 +11,11 @@ class TestLib(unittest.TestCase):
     def test_references_graph_to_igraph(self):
         references_graph = [
             {
-                "closureSize": 1,
-                "narHash": "sha256:a",
-                "narSize": 2,
-                "path": "A",
+                "closureSize": 3,
+                "narHash": "sha256:b",
+                "narSize": 0,
+                "path": "D",
                 "references": [
-                    # most of the time references contain self path (but not
-                    # always, not sure why)
-                    "A",
-                    "B",
-                    "C"
                 ]
             },
             {
@@ -29,7 +24,26 @@ class TestLib(unittest.TestCase):
                 "narSize": 4,
                 "path": "B",
                 "references": [
-                    "C"
+                ]
+            },
+            {
+                "closureSize": 3,
+                "narHash": "sha256:b",
+                "narSize": 5,
+                "path": "E",
+                "references": [
+                ]
+            },
+            {
+                "closureSize": 1,
+                "narHash": "sha256:a",
+                "narSize": 10,
+                "path": "A",
+                "references": [
+                    # most of the time references contain self path (but not
+                    # always, not sure why)
+                    "C",
+                    "B",
                 ]
             },
             {
@@ -38,13 +52,21 @@ class TestLib(unittest.TestCase):
                 "narSize": 6,
                 "path": "C",
                 "references": [
-                    "C"
+                    "E",
+                    "D"
                 ]
             }
         ]
 
         graph = references_graph_to_igraph(references_graph)
 
+        print(graph)
+        print_vs(graph)
+        print(graph.dfs(find_vertex_by_name_or_none(graph)("A").index))
+        print([
+            (graph.vs[x]["name"], graph.vs[x]["narSize"]) for x in
+            graph.dfs(find_vertex_by_name_or_none(graph)("A").index)[0]
+        ])
         self.assertEqual(3, len(graph.vs))
 
         def vertexPropsAsArray(v):
