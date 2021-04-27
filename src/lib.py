@@ -55,6 +55,13 @@ def debug_plot_with_highligth(g, vs, layout):
     )
 
 
+@curry
+def pick_keys(keys, d):
+    return {
+        key: d[key] for key in keys if key in d
+    }
+
+
 def unnest_iterable(xs):
     return itertools.chain.from_iterable(xs)
 
@@ -105,12 +112,19 @@ def egdes_for_reference_graph_node(path_to_size_dict, reference_graph_node):
     )
 
 
+reference_graph_node_keys_to_keep = [
+    "closureSize",
+    "narSize"
+]
+
+pick_reference_graph_node_keys = pick_keys(reference_graph_node_keys_to_keep)
+
+
 def vertex_from_reference_graph_node(reference_graph_node):
-    return {
-        "name": reference_graph_node["path"],
-        "closureSize": reference_graph_node["closureSize"],
-        "narSize": reference_graph_node["narSize"],
-    }
+    return tlz.merge(
+        {"name": reference_graph_node["path"]},
+        pick_reference_graph_node_keys(reference_graph_node)
+    )
 
 
 def references_graph_to_igraph(references_graph):
@@ -122,7 +136,6 @@ def references_graph_to_igraph(references_graph):
     debug('references_graph', references_graph)
     references_graph = sorted(references_graph, key=lambda x: 1 * x["narSize"])
 
-    debug('references_graph', references_graph)
     path_to_size_dict = {
         node["path"]: node["narSize"] for node in references_graph
     }
@@ -131,9 +144,33 @@ def references_graph_to_igraph(references_graph):
 
     return igraph.Graph.DictList(
         map(vertex_from_reference_graph_node, references_graph),
-        unnest_iterable(map(egdes_for_reference_graph_node(path_to_size_dict), references_graph)),
+        unnest_iterable(map(
+            egdes_for_reference_graph_node(path_to_size_dict),
+            references_graph
+        )),
         directed=True
     )
+
+
+@curry
+def graph_vertex_index_to_name(graph, index):
+    return graph.vs[index]["name"]
+
+
+def igraph_to_reference_graph(igraph_instance):
+    return [
+        tlz.merge(
+            {
+                "path": v["name"],
+                "references": list(map(
+                    graph_vertex_index_to_name(igraph_instance),
+                    igraph_instance.successors(v.index)
+                ))
+            },
+            pick_reference_graph_node_keys(v.attributes())
+        )
+        for v in igraph_instance.vs
+    ]
 
 
 def load_closure_graph(file_path):
@@ -147,6 +184,10 @@ def path_relative_to_file(file_path_from, file_path):
 
 def is_None(x):
     return x is None
+
+
+def not_None(x):
+    return x is not None
 
 
 def print_layers(layers):
@@ -165,29 +206,50 @@ def print_vs(graph):
         debug(v)
 
 
-def directedGraph(edges, vertices=None):
+def directed_graph(edges, vertices=None, vertex_attrs=[]):
     graph = igraph.Graph.TupleList(edges, directed=True)
-    return graph if vertices is None else graph  +  vertices
+
+    # Add detached vertices (without edges) if any.
+    if vertices is not None:
+        graph = graph + vertices
+
+    # Add vertex attributes if any.
+    for (name, attrs_dict) in vertex_attrs:
+        vertex = graph.vs.find(name)
+
+        for (k, v) in attrs_dict.items():
+            vertex[k] = v
+
+    return graph
 
 
-def emptyDirectedGraph():
-    return directedGraph([])
+def empty_directed_graph():
+    return directed_graph([])
 
 
 def graph_is_empty(graph):
     return len(graph.vs) == 0
 
 
+def pick_attrs(attrs, x):
+    return {attr: getattr(x, attr) for attr in attrs}
+
+
+def merge_graphs(graphs):
+    return tlz.reduce(lambda acc, g: acc + g, graphs)
+
+
+# Functions which can be used in user defined pipeline (see pipe.py),
 @curry
 def over(prop_name, func, dictionary):
-    debug("dictionary", dictionary)
     value = dictionary[prop_name]
     return tlz.assoc(dictionary, prop_name, func(value))
 
 
+# One argument functions also need to be curried to simplify processing of the
+# pipeline.
 @curry
 def flatten(xs):
-    debug('xs', xs)
     xs = xs.values() if isinstance(xs, dict) else xs
     for x in xs:
         if isinstance(x, Iterable) and not isinstance(x, (str, bytes)):
@@ -205,10 +267,6 @@ def split_every(count, graph):
     ]
 
 
-def merge_graphs(graphs):
-    return tlz.reduce(lambda acc, g: acc + g, graphs)
-
-
 @curry
 def limit_layers(max_count, graphs):
     assert max_count > 1, "max count needs to > 1"
@@ -221,7 +279,3 @@ def limit_layers(max_count, graphs):
         # max_count - 1 have been taken.
         (lambda: (yield merge_graphs(graphs_iterator)))()
     ])
-
-
-def pick_attrs(attrs, x):
-    return {attr: getattr(x, attr) for attr in attrs}

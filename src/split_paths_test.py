@@ -1,13 +1,15 @@
 import unittest
 from toolz import curry
 
+from . import test_helpers as th
+
 from .split_paths import (
     split_paths
 )
 
 from .lib import (
-    directedGraph,
-    emptyDirectedGraph
+    directed_graph,
+    pick_keys
 )
 
 
@@ -15,7 +17,15 @@ if __name__ == "__main__":
     unittest.main()
 
 
-def makeTestGraph():
+# Making sure vertex attrs are preserved.
+vertex_props_dict = {
+    "Root1": {"a": 1, "b": 1},
+    "B": {"b": 2},
+    "X": {"x": 3}
+}
+
+
+def make_test_graph():
     edges = [
         ("Root1", "A"),
         ("A", "B"),
@@ -24,37 +34,17 @@ def makeTestGraph():
         ("B", "D"),
         ("B", "F"),
         ("Root2", "B"),
-        ("Root3", "C"),
+        ("Root3", "C")
     ]
 
-    return directedGraph(edges)
+    detached_vertices = ["X"]
 
+    vertex_props = vertex_props_dict.items()
 
-def graphVertexIndexToName(graph, index):
-    return graph.vs[index]["name"]
-
-
-def edgesAsSet(graph):
-    return frozenset(
-        (
-            graphVertexIndexToName(graph, e.source),
-            graphVertexIndexToName(graph, e.target)
-        ) for e in graph.es
-    )
+    return directed_graph(edges, detached_vertices, vertex_props)
 
 
 class CustomAssertions:
-    def assertGraphsEqual(self, g1, g2):
-        self.assertSetEqual(
-            frozenset(g1.vs["name"]),
-            frozenset(g2.vs["name"])
-        )
-
-        self.assertSetEqual(
-            edgesAsSet(g1),
-            edgesAsSet(g2)
-        )
-
     @curry
     def assertResultKeys(self, keys, result):
         self.assertListEqual(
@@ -65,120 +55,130 @@ class CustomAssertions:
         return result
 
 
-class TestSplitPaths(unittest.TestCase, CustomAssertions):
+class Test(
+    unittest.TestCase,
+    CustomAssertions,
+    th.CustomAssertions
+):
 
     def test_empty_paths(self):
-        def test(func):
-            input_graph = makeTestGraph()
+        input_graph = make_test_graph()
 
-            result = self.assertResultKeys(
-                ["rest"],
-                func(input_graph, [])
-            )
+        result = self.assertResultKeys(
+            ["rest"],
+            split_paths([], input_graph)
+        )
 
-            self.assertGraphsEqual(
-                result["rest"],
-                input_graph
-            )
-
-        test(split_paths)
+        self.assertGraphEqual(
+            result["rest"],
+            input_graph
+        )
 
     def test_empty_graph(self):
-        def test(func):
-            empty_graph = directedGraph([])
+        empty_graph = directed_graph([])
 
-            def test_empty(paths):
-                result = self.assertResultKeys(
-                    ["rest"],
-                    func(empty_graph, paths)
-                )
+        def test_empty(paths):
+            result = self.assertResultKeys(
+                ["rest"],
+                split_paths(paths, empty_graph)
+            )
 
-                self.assertGraphsEqual(
-                    result["rest"],
-                    empty_graph
-                )
+            self.assertGraphEqual(
+                result["rest"],
+                empty_graph
+            )
 
-            test_empty([])
-            test_empty(["B"])
-
-        test(split_paths)
+        test_empty([])
+        test_empty(["B"])
 
     def test_split_paths_single(self):
         result = self.assertResultKeys(
-            ["common", "rest", "main"],
-            split_paths(makeTestGraph(), ["B"])
+            ["main", "common", "rest"],
+            split_paths(["B"], make_test_graph())
         )
 
-        self.assertGraphsEqual(
+        self.assertGraphEqual(
             result["main"],
-            directedGraph(
+            directed_graph(
                 [
                     ("B", "F")
-                ]
+                ],
+                None,
+                pick_keys(["B"], vertex_props_dict).items()
             )
         )
 
-        self.assertGraphsEqual(
+        self.assertGraphEqual(
             result["rest"],
-            directedGraph(
+            directed_graph(
                 [
                     ("Root1", "A"),
                     ("Root3", "C")
                 ],
-                ["Root2"]
+                ["Root2", "X"],
+                pick_keys(["Root1", "X"], vertex_props_dict).items()
             )
         )
 
-        self.assertGraphsEqual(
+        self.assertGraphEqual(
             result["common"],
-            directedGraph([("D", "E")])
+            directed_graph([("D", "E")])
         )
 
     def test_split_paths_multi(self):
         result = self.assertResultKeys(
-            ["common", "rest", "main"],
-            split_paths(makeTestGraph(), ["B", "Root3"])
+            ["main", "common", "rest"],
+            split_paths(["B", "Root3"], make_test_graph())
         )
 
-        self.assertGraphsEqual(
+        self.assertGraphEqual(
             result["main"],
-            directedGraph(
+            directed_graph(
                 [
                     ("B", "F"),
                     ("Root3", "C")
-                ]
+                ],
+                None,
+                pick_keys(["B"], vertex_props_dict).items()
             )
         )
 
-        self.assertGraphsEqual(
+        self.assertGraphEqual(
             result["rest"],
-            directedGraph([("Root1", "A")], ["Root2"])
+            directed_graph(
+                [("Root1", "A")],
+                ["Root2", "X"],
+                pick_keys(["Root1", "X"], vertex_props_dict).items()
+            )
         )
 
-        self.assertGraphsEqual(
+        self.assertGraphEqual(
             result["common"],
-            directedGraph([("D", "E")])
+            directed_graph([("D", "E")])
         )
 
     def test_split_no_common(self):
         result = self.assertResultKeys(
-            ["rest", "main"],
-            split_paths(makeTestGraph(), ["D"])
+            ["main", "rest"],
+            split_paths(["D"], make_test_graph())
         )
 
-        self.assertGraphsEqual(
+        self.assertGraphEqual(
             result["main"],
-            directedGraph([("D", "E")])
+            directed_graph([("D", "E")])
         )
 
-        self.assertGraphsEqual(
+        self.assertGraphEqual(
             result["rest"],
-            directedGraph([
-                ("Root1", "A"),
-                ("A", "B"),
-                ("B", "F"),
-                ("Root2", "B"),
-                ("Root3", "C"),
-            ])
+            directed_graph(
+                [
+                    ("Root1", "A"),
+                    ("A", "B"),
+                    ("B", "F"),
+                    ("Root2", "B"),
+                    ("Root3", "C"),
+                ],
+                ["X"],
+                pick_keys(["Root1", "B", "X"], vertex_props_dict).items()
+            )
         )
-

@@ -1,6 +1,5 @@
 from toolz import curried as tlz
 from toolz import curry
-import igraph as igraph
 
 from .lib import (
     debug,

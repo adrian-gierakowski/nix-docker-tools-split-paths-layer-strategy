@@ -1,13 +1,16 @@
 import unittest
 
+from . import test_helpers as th
+
 from .subcomponent import (
     subcomponent_out,
     subcomponent_in
 )
 
 from .lib import (
-    directedGraph,
-    emptyDirectedGraph
+    pick_keys,
+    directed_graph,
+    empty_directed_graph
 )
 
 
@@ -15,7 +18,15 @@ if __name__ == "__main__":
     unittest.main()
 
 
-def makeTestGraph():
+# Making sure vertex attrs are preserved.
+vertex_props_dict = {
+    "Root1": {"a": 1, "b": 1},
+    "B": {"b": 2},
+    "X": {"x": 3}
+}
+
+
+def make_test_graph():
     edges = [
         ("Root1", "A"),
         ("A", "B"),
@@ -26,34 +37,14 @@ def makeTestGraph():
         ("Root3", "C"),
     ]
 
-    return directedGraph(edges)
+    detached_vertices = ["X"]
 
+    vertex_props = vertex_props_dict.items()
 
-def graphVertexIndexToName(graph, index):
-    return graph.vs[index]["name"]
-
-
-def edgesAsSet(graph):
-    return frozenset(
-        (
-            graphVertexIndexToName(graph, e.source),
-            graphVertexIndexToName(graph, e.target)
-        ) for e in graph.es
-    )
+    return directed_graph(edges, detached_vertices, vertex_props)
 
 
 class CustomAssertions:
-    def assertGraphsEqual(self, g1, g2):
-        self.assertSetEqual(
-            frozenset(g1.vs["name"]),
-            frozenset(g2.vs["name"])
-        )
-
-        self.assertSetEqual(
-            edgesAsSet(g1),
-            edgesAsSet(g2)
-        )
-
     def assertResultKeys(self, result):
         self.assertListEqual(
             list(result.keys()),
@@ -63,22 +54,26 @@ class CustomAssertions:
         return result
 
 
-class TestSubcomponent(unittest.TestCase, CustomAssertions):
+class Test(
+    unittest.TestCase,
+    CustomAssertions,
+    th.CustomAssertions
+):
 
     def test_empty_paths(self):
         def test(func):
-            input_graph = makeTestGraph()
+            input_graph = make_test_graph()
 
             result = self.assertResultKeys(
-                func(input_graph, [])
+                func([], input_graph)
             )
 
-            self.assertGraphsEqual(
+            self.assertGraphEqual(
                 result["main"],
-                emptyDirectedGraph()
+                empty_directed_graph()
             )
 
-            self.assertGraphsEqual(
+            self.assertGraphEqual(
                 result["rest"],
                 input_graph
             )
@@ -88,19 +83,19 @@ class TestSubcomponent(unittest.TestCase, CustomAssertions):
 
     def test_empty_graph(self):
         def test(func):
-            empty_graph = emptyDirectedGraph()
+            empty_graph = empty_directed_graph()
 
             def test_empty(paths):
                 result = self.assertResultKeys(
-                    func(empty_graph, paths)
+                    func(paths, empty_graph)
                 )
 
-                self.assertGraphsEqual(
+                self.assertGraphEqual(
                     result["main"],
                     empty_graph
                 )
 
-                self.assertGraphsEqual(
+                self.assertGraphEqual(
                     result["rest"],
                     empty_graph
                 )
@@ -113,91 +108,112 @@ class TestSubcomponent(unittest.TestCase, CustomAssertions):
 
     def test_subcomponent_out(self):
         result = self.assertResultKeys(
-            subcomponent_out(makeTestGraph(), ["B"])
+            subcomponent_out(["B"], make_test_graph())
         )
 
-        self.assertGraphsEqual(
+        self.assertGraphEqual(
             result["main"],
-            directedGraph(
+            directed_graph(
                 [
                     ("B", "D"),
                     ("B", "E")
-                ]
+                ],
+                None,
+                pick_keys(["B"], vertex_props_dict).items()
             )
         )
 
-        self.assertGraphsEqual(
+        self.assertGraphEqual(
             result["rest"],
-            directedGraph(
+            directed_graph(
                 [
                     ("Root1", "A"),
                     ("A", "C"),
                     ("Root3", "C")
                 ],
-                ["Root2"]
+                ["Root2", "X"],
+                pick_keys(["Root1", "X"], vertex_props_dict).items()
             )
         )
 
     def test_subcomponent_out_multi(self):
         result = self.assertResultKeys(
-            subcomponent_out(makeTestGraph(), ["B", "Root3"])
+            subcomponent_out(["B", "Root3"], make_test_graph())
         )
 
-        self.assertGraphsEqual(
+        self.assertGraphEqual(
             result["main"],
-            directedGraph(
+            directed_graph(
                 [
                     ("B", "D"),
                     ("B", "E"),
                     ("Root3", "C")
-                ]
+                ],
+                None,
+                pick_keys(["B"], vertex_props_dict).items()
             )
         )
 
-        self.assertGraphsEqual(
+        self.assertGraphEqual(
             result["rest"],
-            directedGraph([("Root1", "A")], ["Root2"])
+            directed_graph(
+                [("Root1", "A")],
+                ["Root2", "X"],
+                pick_keys(["Root1", "X"], vertex_props_dict).items()
+            )
         )
 
     def test_subcomponent_in(self):
         result = self.assertResultKeys(
-            subcomponent_in(makeTestGraph(), ["B"])
+            subcomponent_in(["B"], make_test_graph())
         )
 
-        self.assertGraphsEqual(
+        self.assertGraphEqual(
             result["main"],
-            directedGraph(
+            directed_graph(
                 [
                     ("Root1", "A"),
                     ("A", "B"),
                     ("Root2", "B")
-                ]
+                ],
+                None,
+                pick_keys(["Root1", "B"], vertex_props_dict).items()
             )
         )
 
-        self.assertGraphsEqual(
+        self.assertGraphEqual(
             result["rest"],
-            directedGraph([("Root3", "C")], ["D", "E"])
+            directed_graph(
+                [("Root3", "C")],
+                ["D", "E", "X"],
+                pick_keys(["X"], vertex_props_dict).items()
+            )
         )
 
     def test_subcomponent_in_multi(self):
         result = self.assertResultKeys(
-            subcomponent_in(makeTestGraph(), ["B", "Root3"])
+            subcomponent_in(["B", "Root3"], make_test_graph())
         )
 
-        self.assertGraphsEqual(
+        self.assertGraphEqual(
             result["main"],
-            directedGraph(
+            directed_graph(
                 [
                     ("Root1", "A"),
                     ("A", "B"),
                     ("Root2", "B"),
                 ],
-                ["Root3"]
+                ["Root3"],
+                pick_keys(["Root1", "B"], vertex_props_dict).items()
+
             )
         )
 
-        self.assertGraphsEqual(
+        self.assertGraphEqual(
             result["rest"],
-            directedGraph([], ["C", "D", "E"])
+            directed_graph(
+                [],
+                ["C", "D", "E", "X"],
+                pick_keys(["X"], vertex_props_dict).items()
+            )
         )

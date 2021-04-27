@@ -3,7 +3,8 @@ from toolz import curry
 
 from . import lib as lib
 from . import subcomponent as subcomponent
-from . import split_paths as split_paths
+from .popularity_contest import popularity_contest
+from .split_paths import split_paths
 
 from .lib import (
     # references_graph_to_igraph
@@ -30,15 +31,11 @@ funcs = tlz.merge(
         ],
         subcomponent
     ),
-    pick_attrs(
-        [
-            "split_paths",
-        ],
-        split_paths
-    )
+    {
+        "split_paths": split_paths,
+        "popularity_contest": popularity_contest
+    }
 )
-
-debug('funcs', funcs)
 
 
 @curry
@@ -62,7 +59,7 @@ def preapply_func(func_call_data):
 
 
 @curry
-def pipeline(pipeline, data):
+def pipe(pipeline, data):
     debug("pipeline", pipeline)
     partial_funcs = list(tlz.map(preapply_func, pipeline))
     debug('partial_funcs', partial_funcs)
@@ -72,4 +69,4 @@ def pipeline(pipeline, data):
     )
 
 
-funcs["pipeline"] = pipeline
+funcs["pipe"] = pipe

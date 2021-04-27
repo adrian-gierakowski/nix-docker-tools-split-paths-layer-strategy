@@ -1,50 +1,86 @@
 import unittest
-import inspect as inspect
 from .flatten_references_graph import flatten_references_graph
-from .lib import path_relative_to_file, load_json
+# from .lib import path_relative_to_file, load_json
 
 if __name__ == "__main__":
     unittest.main()
+
+references_graph = [
+    {
+        "closureSize": 1,
+        "narHash": "sha256:a",
+        "narSize": 2,
+        "path": "A",
+        "references": [
+            "A",
+            "C",
+        ]
+    },
+    {
+        "closureSize": 3,
+        "narHash": "sha256:b",
+        "narSize": 4,
+        "path": "B",
+        "references": [
+            "C",
+            "D"
+        ]
+    },
+    {
+        "closureSize": 5,
+        "narHash": "sha256:c",
+        "narSize": 6,
+        "path": "C",
+        "references": [
+            "C"
+        ]
+    },
+    {
+        "closureSize": 7,
+        "narHash": "sha256:d",
+        "narSize": 8,
+        "path": "D",
+        "references": [
+            "D"
+        ]
+    }
+]
 
 
 class Test(unittest.TestCase):
 
     def test_flatten_references_graph(self):
-        references_graph = load_json(path_relative_to_file(
-            __file__,
-            "__test_fixtures/fake-references-graph.json"
-        ))
+        pipeline = [
+            ["split_paths", ["B"]],
+        ]
 
-        strategy = {
-            "algo": "split_by_paths",
-            "args": [
-                [
-                    ["B"]
-                ]
-            ]
-        }
-
-        result = flatten_references_graph(references_graph, strategy)
+        result = flatten_references_graph(references_graph, pipeline)
 
         self.assertEqual(
             result,
-            [['C'], ['A'], ['B']]
+            [
+                # B and it's exclusive deps
+                ["B", "D"],
+                # Common deps
+                ["C"],
+                # Rest (without common deps)
+                ["A"]
+            ]
         )
 
-        strategy = {
-            "algo": "split_by_paths",
-            "paths": ["C"],
-            "sub_split": {
-                "main": {
-                    "algo": "split_by_paths",
-                    "paths": [["B"]]
-                }
-            }
-        }
+        pipeline = [
+            ["split_paths", ["B"]],
+            ["over", "main", ["subcomponent_in", ["B"]]],
+        ]
 
-        result = flatten_references_graph(references_graph, strategy)
+        result = flatten_references_graph(references_graph, pipeline)
 
         self.assertEqual(
             result,
-            [['C'], ['A'], ['B']]
+            [
+                ["B"],
+                ["D"],
+                ["C"],
+                ["A"]
+            ]
         )

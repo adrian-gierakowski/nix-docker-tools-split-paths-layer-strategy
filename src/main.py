@@ -11,12 +11,12 @@ def main_impl(file_path):
     data = load_json(file_path)
 
     references_graph = data["graph"]
-    strategy = data["strategy"]
+    pipeline = data["pipeline"]
 
     debug("references_graph", references_graph)
-    debug("strategy", strategy)
+    debug("pipeline", pipeline)
 
-    result = flatten_references_graph(references_graph, strategy)
+    result = flatten_references_graph(references_graph, pipeline)
 
     debug("result", result)
 

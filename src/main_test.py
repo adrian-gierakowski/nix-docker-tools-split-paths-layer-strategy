@@ -23,13 +23,13 @@ class TestMain(unittest.TestCase):
                 """
                 [
                   [
+                    "B"
+                  ],
+                  [
                     "C"
                   ],
                   [
                     "A"
-                  ],
-                  [
-                    "B"
                   ]
                 ]
                 """
