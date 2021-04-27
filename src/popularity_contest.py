@@ -165,7 +165,7 @@ def all_paths(closures):
 # Convert:
 #
 # [
-#    { path: /nix/store/foo, references: [ /nix/store/foo, /nix/store/bar, /nix/store/baz ] },
+#    { path: /nix/store/foo, references: [ /nix/store/foo, /nix/store/bar, /nix/store/baz ] },      # noqa: E501
 #    { path: /nix/store/bar, references: [ /nix/store/bar, /nix/store/baz ] },
 #    { path: /nix/store/baz, references: [ /nix/store/baz, /nix/store/tux ] },
 #    { path: /nix/store/tux, references: [ /nix/store/tux ] }
@@ -304,8 +304,7 @@ def order_by_popularity(paths):
         popularities.append(popularity)
         paths_by_popularity[popularity].append(path)
 
-    popularities = list(set(popularities))
-    popularities.sort()
+    popularities = sorted(set(popularities))
 
     flat_ordered = []
     for popularity in popularities:
@@ -324,14 +323,15 @@ def package_name(path):
     parts.append(start)
     return '-'.join(parts)
 
+
 @curry
 def popularity_contest(graph):
     # Data comes in as an igraph directed graph or in the format produced
     # by nix's exportReferencesGraph:
     # [
-    #    { path: /nix/store/foo, references: [ /nix/store/foo, /nix/store/bar, /nix/store/baz ] },
-    #    { path: /nix/store/bar, references: [ /nix/store/bar, /nix/store/baz ] },
-    #    { path: /nix/store/baz, references: [ /nix/store/baz, /nix/store/tux ] },
+    #    { path: /nix/store/foo, references: [ /nix/store/foo, /nix/store/bar, /nix/store/baz ] },  # noqa: E501
+    #    { path: /nix/store/bar, references: [ /nix/store/bar, /nix/store/baz ] },                  # noqa: E501
+    #    { path: /nix/store/baz, references: [ /nix/store/baz, /nix/store/tux ] },                  # noqa: E501
     #    { path: /nix/store/tux, references: [ /nix/store/tux ] }
     #  ]
     #
@@ -390,10 +390,13 @@ def popularity_contest(graph):
     ordered.extend(missing)
 
     return map(
-        # Turn each path into a graph.
+        # Turn each path into a graph with 1 vertex.
         lambda path: directed_graph(
+            # No edges
             [],
+            # One vertex, with name=path
             [path],
+            # Setting desired attributes on the vertex.
             [(path, pick_keys_to_keep(lookup[path]))]
         ),
         ordered

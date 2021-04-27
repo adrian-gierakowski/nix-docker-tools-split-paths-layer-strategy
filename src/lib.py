@@ -239,7 +239,9 @@ def merge_graphs(graphs):
     return tlz.reduce(lambda acc, g: acc + g, graphs)
 
 
-# Functions which can be used in user defined pipeline (see pipe.py),
+# Functions below can be used in user defined pipeline (see pipe.py).
+# All functions need to be curried, and the user needs to be able to
+# provide values for all arguments apart from the last one from nix code.
 @curry
 def over(prop_name, func, dictionary):
     value = dictionary[prop_name]

@@ -12,8 +12,6 @@ from .lib import (
     pick_attrs
 )
 
-# from . import lib as lib
-
 funcs = tlz.merge(
     pick_attrs(
         [

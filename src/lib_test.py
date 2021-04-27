@@ -114,6 +114,7 @@ class TestLib(unittest.TestCase, th.CustomAssertions):
         )
 
         return
+
         def vertex_props_as_array(v):
             return [v["name"], v["closureSize"], v["narSize"]]
 
