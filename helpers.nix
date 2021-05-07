@@ -1,29 +1,35 @@
 {
   bash,
-  lib,
-  makeWrapper,
-  runCommandNoCCLocal,
-  writers
+  writers,
+  python39Packages
 }:
 let
-  mkScriptBinWithDeps = interpreter: deps: name: content:
+  pythonPackages = python39Packages;
+
+  writeCheckedBashBin = name:
     let
-      scriptNoDeps = writers.makeScriptWriter
-        {
-          inherit interpreter;
-          # This should work with most shell interpreters.
-          check = "${interpreter} -n $1";
-        }
-        "${name}-no-deps"
-        content
-      ;
-    in runCommandNoCCLocal name { buildInputs = [ makeWrapper ]; } ''
-      mkdir -p $out/bin
-      binPath=$out/bin/${name}
-      makeWrapper ${scriptNoDeps} $out/bin/${name} --prefix PATH : ${lib.makeBinPath deps}
-    '';
+      interpreter = "${bash}/bin/bash";
+    in writers.makeScriptWriter {
+      inherit interpreter;
+      check = "${interpreter} -n $1";
+    } "/bin/${name}";
+
+  lint = writeCheckedBashBin "lint" ''
+    ${pythonPackages.flake8}/bin/flake8 --show-source ''${@}
+  '';
+
+  unittest = writeCheckedBashBin "unittest" ''
+    if [ "$#" -eq 0 ]; then
+      set -- discover -p '*_test.py'
+    fi
+
+    ${pythonPackages.python}/bin/python -m unittest "''${@}"
+  '';
+
+  format = writeCheckedBashBin "format" ''
+    ${pythonPackages.autopep8}/bin/autopep8 -r -i . "''${@}"
+  '';
 in {
-  inherit mkScriptBinWithDeps;
-  mkBashScriptBinWithDeps = mkScriptBinWithDeps "${bash}/bin/bash";
+  inherit format lint unittest;
 }
 

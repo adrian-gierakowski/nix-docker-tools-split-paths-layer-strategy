@@ -1,16 +1,12 @@
 {
-  callPackage,
-  gwenview,
   nix-gitignore,
   python39Packages,
+  callPackage
 }:
 let
   pythonPackages = python39Packages;
-  inherit (callPackage (import ./helpers.nix) {}) mkBashScriptBinWithDeps;
-  # helpers = callPackage (import ./helpers.nix) {};
-  # inherit () mkBashScriptBinWithDeps;
-  unittest = mkBashScriptBinWithDeps [pythonPackages.python] "unittest" ./src/unittest.sh;
-  lint = mkBashScriptBinWithDeps [pythonPackages.flake8] "lint" ./src/lint.sh;
+  inherit (callPackage (import ./helpers.nix) {}) lint unittest;
+
 in pythonPackages.buildPythonApplication {
   version = "0.1.0";
   pname = "flatten-references-graph";
@@ -18,19 +14,15 @@ in pythonPackages.buildPythonApplication {
   # Note this uses only ./src/.gitignore
   src = nix-gitignore.gitignoreSource [] ./src;
 
-  # Specify runtime dependencies for the package
   propagatedBuildInputs = with pythonPackages; [
     python-igraph
     toolz
   ];
 
   doCheck = true;
-  checkInputs = [
-    lint
-    unittest
-  ];
+
   checkPhase = ''
-    lint
-    unittest
+    ${lint}/bin/lint
+    ${unittest}/bin/unittest
   '';
 }
