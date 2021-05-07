@@ -7,6 +7,7 @@ import itertools as itertools
 import json as json
 import os as os
 import re as re
+import sys
 
 DEBUG = os.environ.get("DEBUG", False) == "True"
 DEBUG_PLOT = os.environ.get("DEBUG_PLOT", False) == "True"
@@ -14,7 +15,7 @@ DEBUG_PLOT = os.environ.get("DEBUG_PLOT", False) == "True"
 
 def debug(*args, **kwargs):
     if DEBUG:
-        print(*args, **kwargs)
+        print(*args, file=sys.stderr, **kwargs)
 
 
 def debug_plot(g, **kwargs):
@@ -271,7 +272,7 @@ def split_every(count, graph):
 
 @curry
 def limit_layers(max_count, graphs):
-    assert max_count > 1, "max count needs to > 1"
+    assert max_count > 0, "max count needs to > 0"
 
     graphs_iterator = iter(graphs)
 
@@ -281,3 +282,24 @@ def limit_layers(max_count, graphs):
         # max_count - 1 have been taken.
         (lambda: (yield merge_graphs(graphs_iterator)))()
     ])
+
+
+@curry
+def remove_paths(paths, graph):
+    # Allow passing a single path.
+    if isinstance(paths, str):
+        paths = [paths]
+
+    indices_to_remove = tlz.compose(
+        list,
+        tlz.map(lambda v: v.index),
+        tlz.remove(is_None),
+        tlz.map(find_vertex_by_name_or_none(graph))
+    )(paths)
+
+    return graph - indices_to_remove if len(indices_to_remove) > 0 else graph
+
+
+@curry
+def reverse(iterator):
+    return reversed(list(iterator))

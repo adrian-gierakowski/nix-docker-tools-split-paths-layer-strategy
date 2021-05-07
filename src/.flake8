@@ -1,16 +1,4 @@
 [flake8]
-# Allow:
-# func_call(self,
-#    arg1,
-#    arg3
-# )
-#
-# Without it, we'd have to put self on new line, or allign the rest of the args
-# with it.
-ignore = E128
 max-line-length = 80
-per-file-ignores =
-  # long store path in this test file
-  split_paths_strategy_test.py:E501
 [pep8]
 aggressive = 1

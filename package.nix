@@ -1,6 +1,16 @@
-{ nix-gitignore, gwenview, python39Packages, }:
+{
+  callPackage,
+  gwenview,
+  nix-gitignore,
+  python39Packages,
+}:
 let
   pythonPackages = python39Packages;
+  inherit (callPackage (import ./helpers.nix) {}) mkBashScriptBinWithDeps;
+  # helpers = callPackage (import ./helpers.nix) {};
+  # inherit () mkBashScriptBinWithDeps;
+  unittest = mkBashScriptBinWithDeps [pythonPackages.python] "unittest" ./src/unittest.sh;
+  lint = mkBashScriptBinWithDeps [pythonPackages.flake8] "lint" ./src/lint.sh;
 in pythonPackages.buildPythonApplication {
   version = "0.1.0";
   pname = "flatten-references-graph";
@@ -14,15 +24,13 @@ in pythonPackages.buildPythonApplication {
     toolz
   ];
 
-  # Test dependencies
-  checkInputs = with pythonPackages; [
-    flake8
-    pycairo
-    gwenview
-  ];
-
   doCheck = true;
+  checkInputs = [
+    lint
+    unittest
+  ];
   checkPhase = ''
-    ${pythonPackages.flake8}/bin/flake8 --show-source
+    lint
+    unittest
   '';
 }

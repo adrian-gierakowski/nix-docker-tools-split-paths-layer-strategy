@@ -18,7 +18,9 @@ funcs = tlz.merge(
             "flatten",
             "over",
             "split_every",
-            "limit_layers"
+            "limit_layers",
+            "remove_paths",
+            "reverse"
         ],
         lib
     ),
@@ -31,7 +33,8 @@ funcs = tlz.merge(
     ),
     {
         "split_paths": split_paths,
-        "popularity_contest": popularity_contest
+        "popularity_contest": popularity_contest,
+        "map": tlz.map
     }
 )
 
@@ -49,9 +52,16 @@ def preapply_func(func_call_data):
     debug("func_name", func_name)
     debug("args", args)
     debug('func_name in ["over"]', func_name in ["over"])
-    if func_name in ["over"]:
+
+    # TODO: these could be handled in more generic way by defining, for each
+    # function, which of the args are expected to be functions which need
+    # pre-applying.
+    if func_name == "over":
         [first_arg, second_arg] = args
         args = [first_arg, preapply_func(second_arg)]
+
+    elif func_name == "map":
+        args = [preapply_func(args[0])]
 
     return funcs[func_name](*args)
 

@@ -10,13 +10,22 @@ def main_impl(file_path):
 
     data = load_json(file_path)
 
+    # These are required
     references_graph = data["graph"]
     pipeline = data["pipeline"]
 
+    # This is optional
+    exclude_paths = data.get("exclude_paths")
+
     debug("references_graph", references_graph)
     debug("pipeline", pipeline)
+    debug("exclude_paths", exclude_paths)
 
-    result = flatten_references_graph(references_graph, pipeline)
+    result = flatten_references_graph(
+        references_graph,
+        pipeline,
+        exclude_paths=exclude_paths
+    )
 
     debug("result", result)
 

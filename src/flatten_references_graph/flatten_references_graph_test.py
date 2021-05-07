@@ -84,3 +84,38 @@ class Test(unittest.TestCase):
                 ["A"]
             ]
         )
+
+    def test_flatten_references_graph_exclude_paths(self):
+        pipeline = [
+            ["split_paths", ["B"]],
+        ]
+
+        result = flatten_references_graph(
+            references_graph,
+            pipeline,
+            exclude_paths=["A"]
+        )
+
+        self.assertEqual(
+            result,
+            [
+                # A was excluded so there is no "rest" or "common" layer
+                ["B", "C", "D"]
+            ]
+        )
+
+        result = flatten_references_graph(
+            references_graph,
+            pipeline,
+            exclude_paths=["D"]
+        )
+
+        self.assertEqual(
+            result,
+            [
+                # D removed from this layer
+                ["B"],
+                ["C"],
+                ["A"]
+            ]
+        )

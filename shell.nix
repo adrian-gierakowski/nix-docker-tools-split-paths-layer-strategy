@@ -3,7 +3,7 @@
     inputsFrom = [ (import ./default.nix { inherit pkgs; }) ];
     buildInputs = [
       pkgs.python39Packages.autopep8
-      pkgs.nodePackages.nodemon
+      # pkgs.nodePackages.nodemon
     ];
   }
 
