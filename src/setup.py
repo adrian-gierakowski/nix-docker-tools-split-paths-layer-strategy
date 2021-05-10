@@ -1,4 +1,4 @@
-from distutils.core import setup
+from setuptools import setup
 
 setup(
     name="flatten_references_graph",
@@ -11,7 +11,7 @@ setup(
     ],
     entry_points={
         "console_scripts": [
-            "flatten_references_graph=flatten_references_graph.main:main"
+            "flatten_references_graph=flatten_references_graph.__main__:main"
         ]
     }
 )
